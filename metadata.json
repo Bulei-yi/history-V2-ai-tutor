@@ -1,0 +1,5 @@
+{
+  "name": "Smart Study Quiz Platform",
+  "description": "A mobile-first educational platform for students to practice multiple-choice and material-based questions, featuring real-time feedback, performance statistics, and a persistent mistake bank.",
+  "requestFramePermissions": []
+}
