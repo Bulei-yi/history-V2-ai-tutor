@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from './components/Layout.tsx';
 import { QuestionCard } from './components/QuestionCard.tsx';
@@ -42,6 +43,19 @@ const App: React.FC = () => {
     trends: [45, 52, 48, 65, 72, 85, 91],
     weakPoints: [] as { name: string; count: number }[]
   });
+
+  // --- 退出登录逻辑 ---
+  const handleLogout = () => {
+    if (view === 'quiz') {
+      if (!window.confirm("考试正在进行中，确定要退出并放弃当前进度吗？")) return;
+    }
+    setStudent(null);
+    localStorage.removeItem('current_student');
+    // 可选：清除今日用量缓存，强制下次登录重新拉取
+    localStorage.removeItem('usage_count');
+    localStorage.removeItem('usage_date');
+    setView('login');
+  };
 
   // --- 业务逻辑：同步今日用量 ---
   const fetchTodayUsage = async (studentId: string) => {
@@ -267,7 +281,11 @@ const App: React.FC = () => {
   const currentMaxScore = questions.reduce<number>((acc: number, curr: Question) => acc + (curr.fullScore || 2), 0);
 
   return (
-    <Layout onFooterClick={() => {}} title={view === 'quiz' ? `模考进行中 ${currentIndex + 1}/5` : UI_STRINGS.APP_TITLE}>
+    <Layout 
+      onFooterClick={() => {}} 
+      title={view === 'quiz' ? `模考进行中 ${currentIndex + 1}/5` : UI_STRINGS.APP_TITLE}
+      onLogout={(student || view === 'admin_stats') && view !== 'login' ? handleLogout : undefined}
+    >
       {view === 'login' && (
         <div className="py-20 px-8 space-y-8 animate-in fade-in h-full relative">
           <div className="text-center space-y-4">
@@ -332,7 +350,7 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
-          <button onClick={() => setView('login')} className="w-full py-6 bg-gray-100 text-gray-600 rounded-[2rem] font-black text-sm uppercase tracking-widest active:scale-95">退出管理系统</button>
+          <button onClick={handleLogout} className="w-full py-6 bg-gray-100 text-gray-600 rounded-[2rem] font-black text-sm uppercase tracking-widest active:scale-95">退出管理系统</button>
         </div>
       )}
 

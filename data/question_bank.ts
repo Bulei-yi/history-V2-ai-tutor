@@ -6,7 +6,7 @@ export const questionBank = {
         "standard_answer": "B",
         "max_score": 2,
         "analysis": "浙江、内蒙古、黑龙江等不同地区新石器时代玉质文物形状相似度高，体现不同区域文明的文化共性（一体），同时各有独特考古遗址（多元），符合中华文明多元一体的特征。",
-        "point_name": "原始农业"
+        "point_name" :"原始农业"
     },
     {
         "id": "gz_2025_002",

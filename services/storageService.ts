@@ -84,6 +84,7 @@ export const storageService = {
       is_correct: item.is_correct,
       score: item.score,
       ai_grading: item.ai_grading 
+      student_id: attemptData.student_id,
     }));
 
     const { error: itemsError } = await supabase
