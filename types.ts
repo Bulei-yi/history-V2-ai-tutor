@@ -21,6 +21,7 @@ export interface Question {
   options?: string[];
   answer: string;
   analysis: string;
+  point_name?: string;
   highlights?: string[];
   category?: string;
   fullScore?: number;

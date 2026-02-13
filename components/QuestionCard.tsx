@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Question, GradingResult } from '../types';
+import { Question, GradingResult } from '../types.ts';
 
 interface QuestionCardProps {
   question: Question & { hint?: string };

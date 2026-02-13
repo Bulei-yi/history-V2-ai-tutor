@@ -1,12 +1,10 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { Question, GradingResult, Region } from "../types";
-// @ts-ignore
-import questionBank from "../data/questionBank.json";
+import { Question, GradingResult, Region, QuestionType } from "../types.ts";
+import { questionBank } from "../data/question_bank";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-const DEFAULT_MODEL = 'gemini-3-flash-preview';
+// Complex tasks should use gemini-3-pro-preview
+const DEFAULT_MODEL = 'gemini-3-pro-preview';
 
 const EXPERT_SYSTEM_INSTRUCTION = `你是广东省中考历史阅卷专家。你的任务是根据提供的标准答案和阅卷规则，对学生的作答进行精准批改。
 
@@ -18,61 +16,85 @@ const EXPERT_SYSTEM_INSTRUCTION = `你是广东省中考历史阅卷专家。你
    - 深圳/通用卷：注重关键词命中。
    - 严格按踩点给分，满分为 20 分。`;
 
-// Helper for shuffling array
+// Fisher-Yates Shuffle Algorithm for deep randomization
 function shuffle<T>(array: T[]): T[] {
-  return [...array].sort(() => Math.random() - 0.5);
+  const newArr = [...array];
+  for (let i = newArr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+  }
+  return newArr;
 }
 
 export const aiService = {
   /**
-   * 从本地题库抽取试卷
-   * 4 道选择题 + 1 道材料题
+   * 抽取 4 + 1 试卷 (4选择 + 1材料)
+   * 严格隔离地区库，深度随机，并处理去重
    */
-  getExpertQuestionSet: async (region: Region): Promise<Question[]> => {
-    // 1. 筛选对应地区的题目
-    const regionQuestions = (questionBank as Question[]).filter(q => q.region === region || q.region === '通用');
-    
-    // 2. 分离题型
-    const choices = regionQuestions.filter(q => q.type === 'choice');
-    const materials = regionQuestions.filter(q => q.type === 'material');
+  getExpertQuestionSet: async (region: Region, excludeIds: Set<string>): Promise<Question[]> => {
+    const regionKey = (region.includes('卷') ? region : `${region}卷`) as keyof typeof questionBank;
+    const regionalBank = questionBank[regionKey];
 
-    // 3. 随机抽取
-    const selectedChoices = shuffle(choices).slice(0, 4);
-    const selectedMaterials = shuffle(materials).slice(0, 1);
-
-    const result = [...selectedChoices, ...selectedMaterials];
-
-    // 4. 兜底处理（如果题库不足）
-    if (result.length < 5) {
-      console.warn("Local bank insufficient, fetching more from general...");
-      const extra = (questionBank as Question[]).filter(q => !result.includes(q)).slice(0, 5 - result.length);
-      result.push(...extra);
+    if (!regionalBank) {
+      console.error(`[Drawing Engine] regionKey error: ${regionKey}`);
+      throw new Error(`未找到 ${regionKey} 的题库数据，请切换地区。`);
     }
 
-    return result;
+    // Map raw data to Question interface
+    // Fixed Type 'string' is not assignable to type 'QuestionType' error by casting the type property
+    const pool: Question[] = regionalBank.map((q: any) => ({
+      id: q.id,
+      type: (q.question_text.includes('A.') ? 'choice' : 'material') as QuestionType,
+      region: region as Region,
+      stem: q.question_text,
+      answer: q.standard_answer,
+      analysis: q.analysis,
+      fullScore: q.max_score || (q.question_text.includes('A.') ? 2 : 20),
+      options: q.question_text.match(/[A-D]\.\s?[^A-D]+/g) || []
+    }));
+
+    // Filter used questions
+    let available = pool.filter(q => !excludeIds.has(q.id));
+    // If pool is exhausted or too small, reset or use the full pool to ensure availability
+    if (available.length < 5) {
+      available = pool;
+    }
+
+    const shuffled = shuffle(available);
+    const choices = shuffled.filter(q => q.type === 'choice');
+    const materials = shuffled.filter(q => q.type === 'material');
+
+    if (choices.length < 4 || materials.length < 1) {
+       console.error(`[Drawing Engine] ${regionKey} 资源不足 (C:${choices.length} M:${materials.length})`);
+       throw new Error(`${regionKey} 题库资源不足，无法组成 4+1 试卷。`);
+    }
+
+    return [...choices.slice(0, 4), materials[0]];
   },
 
   /**
-   * 使用 Gemini 进行专家级批改
+   * AI 专家批改
    */
   gradeAsExpert: async (region: Region, userAnswer: string, question: Question): Promise<GradingResult> => {
+    // Initializing GoogleGenAI with named parameter apiKey from environment variable
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     try {
       const response = await ai.models.generateContent({
         model: DEFAULT_MODEL,
         contents: `【阅卷任务】
-        地区：${region}卷
+        地区：${region}
         题目：${question.stem}
         参考答案：${question.answer}
         满分：${question.fullScore || 20}
-        学生作答：${userAnswer}
-        
-        请直接返回 JSON 批改结果。`,
+        学生作答：${userAnswer}`,
         config: {
           systemInstruction: EXPERT_SYSTEM_INSTRUCTION,
           responseMimeType: "application/json"
         }
       });
 
+      // Getting text output from GenerateContentResponse using .text property
       const res = JSON.parse(response.text.trim());
       return {
         score: parseFloat(res.score),
@@ -84,14 +106,7 @@ export const aiService = {
       };
     } catch (e) {
       console.error("AI Grading Error:", e);
-      return {
-        score: 0,
-        maxScore: 20,
-        pointsHit: [],
-        pointsMissed: [],
-        analysis: question.analysis,
-        advice: "AI 阅卷繁忙，请对照标准答案自行评估。"
-      };
+      throw new Error("ERROR_AI_GRADE: 批改失败");
     }
   }
 };
