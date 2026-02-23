@@ -1,5 +1,5 @@
 {
-  "name": "Smart Study Quiz Platform",
-  "description": "A mobile-first educational platform for students to practice multiple-choice and material-based questions, featuring real-time feedback, performance statistics, and a persistent mistake bank.",
+  "name": "智学练测 - 广东中考历史AI提分平台",
+  "description": "面向广东中考考生的历史学科AI辅助学习系统。集成全真模拟考、AI专家级批改、错题实验室及精准知识点带背功能，助力考生高效攻克历史薄弱环节。",
   "requestFramePermissions": []
 }

@@ -359,9 +359,19 @@ const App: React.FC = () => {
           <div className="mx-4 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
             <h3 className="text-2xl font-black">{student.name}</h3>
             <p className="opacity-70 font-bold mt-1 text-sm">{student.class_name}</p>
-            <div className="mt-6 flex gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <div className="bg-white/10 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider backdrop-blur-md">今日可用: {Math.max(0, 2 - usageCount)}</div>
               <div className="bg-white/10 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider backdrop-blur-md">历史错题: {localMistakes.length}</div>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert("链接已复制！快去分享给面试官吧 🚀");
+                }}
+                className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider backdrop-blur-md flex items-center gap-1 transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                分享链接
+              </button>
             </div>
           </div>
           <div className="px-4 space-y-6">

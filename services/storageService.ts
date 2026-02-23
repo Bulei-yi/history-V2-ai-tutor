@@ -83,7 +83,7 @@ export const storageService = {
       user_answer: item.user_answer,
       is_correct: item.is_correct,
       score: item.score,
-      ai_grading: item.ai_grading 
+      ai_grading: item.ai_grading,
       student_id: attemptData.student_id,
     }));
 
