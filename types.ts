@@ -53,3 +53,12 @@ export interface AttemptItem {
   score: number;
   ai_grading?: GradingResult;
 }
+
+declare global {
+  interface Window {
+    aistudio: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}

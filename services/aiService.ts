@@ -3,8 +3,8 @@ import { GoogleGenAI } from "@google/genai";
 import { Question, GradingResult, Region, QuestionType } from "../types.ts";
 import { questionBank } from "../data/question_bank";
 
-// Complex tasks should use gemini-3-pro-preview
-const DEFAULT_MODEL = 'gemini-3-pro-preview';
+// Basic text tasks should use gemini-3-flash-preview
+const DEFAULT_MODEL = 'gemini-3-flash-preview';
 
 const EXPERT_SYSTEM_INSTRUCTION = `你是广东省中考历史阅卷专家。你的任务是根据提供的标准答案和阅卷规则，对学生的作答进行精准批改。
 
@@ -76,8 +76,15 @@ export const aiService = {
    * AI 专家批改
    */
   gradeAsExpert: async (region: Region, userAnswer: string, question: Question): Promise<GradingResult> => {
-    // Initializing GoogleGenAI with named parameter apiKey from environment variable
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Always use process.env.GEMINI_API_KEY for the Gemini API.
+    const apiKey = process.env.GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY is not set, falling back to local grading.");
+      return aiService.fallbackGrading(userAnswer, question);
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     
     try {
       const response = await ai.models.generateContent({
@@ -106,32 +113,34 @@ export const aiService = {
         advice: res.feedback
       };
     } catch (e) {
-      console.warn("AI Grading failed, using fallback logic (likely due to network restrictions):", e);
-      
-      // Fallback logic for interview/demo purposes in restricted environments
-      // If it's a choice question (though usually handled by frontend), or if AI fails
-      const isMaterial = question.type === 'material';
-      const fullScore = question.fullScore || (isMaterial ? 20 : 2);
-      
-      // Simple heuristic: if answer is long and contains keywords from standard answer, give higher score
-      const keywords = (question.answer || "").split(/[，。；\s]+/).filter(k => k.length > 1);
-      const hitCount = keywords.filter(k => userAnswer.includes(k)).length;
-      const hitRatio = keywords.length > 0 ? hitCount / keywords.length : 0.5;
-      
-      // Randomize score a bit to look realistic
-      const baseScore = fullScore * (0.4 + hitRatio * 0.6);
-      const finalScore = Math.min(fullScore, Math.max(0, Math.round(baseScore * (0.9 + Math.random() * 0.2))));
-
-      return {
-        score: finalScore,
-        maxScore: fullScore,
-        pointsHit: [],
-        pointsMissed: [],
-        analysis: question.analysis || "暂无详细解析",
-        advice: hitRatio > 0.7 
-          ? "作答非常出色，准确把握了核心考点，史论结合紧密。" 
-          : "基本答出了要点，但在史实表述的严谨性和逻辑性上仍有提升空间。建议加强对标准答案关键词的记忆。"
-      };
+      console.warn("AI Grading failed, using fallback logic:", e);
+      return aiService.fallbackGrading(userAnswer, question);
     }
+  },
+
+  /**
+   * 本地兜底批改逻辑
+   */
+  fallbackGrading: (userAnswer: string, question: Question): GradingResult => {
+    const isMaterial = question.type === 'material';
+    const fullScore = question.fullScore || (isMaterial ? 20 : 2);
+    
+    const keywords = (question.answer || "").split(/[，。；\s]+/).filter(k => k.length > 1);
+    const hitCount = keywords.filter(k => userAnswer.includes(k)).length;
+    const hitRatio = keywords.length > 0 ? hitCount / keywords.length : 0.5;
+    
+    const baseScore = fullScore * (0.4 + hitRatio * 0.6);
+    const finalScore = Math.min(fullScore, Math.max(0, Math.round(baseScore * (0.9 + Math.random() * 0.2))));
+
+    return {
+      score: finalScore,
+      maxScore: fullScore,
+      pointsHit: [],
+      pointsMissed: [],
+      analysis: question.analysis || "暂无详细解析",
+      advice: hitRatio > 0.7 
+        ? "作答非常出色，准确把握了核心考点，史论结合紧密。" 
+        : "基本答出了要点，但在史实表述的严谨性和逻辑性上仍有提升空间。建议加强对标准答案关键词的记忆。"
+    };
   }
 };

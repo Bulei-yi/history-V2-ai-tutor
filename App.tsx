@@ -35,6 +35,25 @@ const App: React.FC = () => {
   const [reviewSource, setReviewSource] = useState<View>('result');
   const [usedIds, setUsedIds] = useState<Set<string>>(new Set());
   const [checkedMistakes, setCheckedMistakes] = useState<Set<string>>(new Set());
+  const [hasApiKey, setHasApiKey] = useState(true);
+
+  // --- 检查 API Key 状态 ---
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleOpenKeyDialog = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true); // 假设选择成功，避免竞态
+    }
+  };
 
   // --- 管理员看板状态 ---
   const [liveStats, setLiveStats] = useState({
@@ -313,6 +332,23 @@ const App: React.FC = () => {
             <input required name="class" placeholder="请输入班级" className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-blue-500 outline-none font-bold" />
             <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl shadow-blue-100 active:scale-[0.97]">进入学习终端</button>
           </form>
+          
+          {!hasApiKey && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 space-y-3">
+              <p className="text-amber-800 text-xs font-bold leading-relaxed">
+                检测到当前环境未配置 AI 密钥。为了确保 AI 批改功能正常运行，请点击下方按钮进行配置。
+              </p>
+              <button 
+                onClick={handleOpenKeyDialog}
+                className="w-full bg-amber-600 text-white py-3 rounded-xl font-black text-xs shadow-md active:scale-95"
+              >
+                配置 AI 阅卷密钥
+              </button>
+              <p className="text-[10px] text-amber-600 text-center">
+                * 请选择一个已开启计费的 Google Cloud 项目密钥
+              </p>
+            </div>
+          )}
         </div>
       )}
 
